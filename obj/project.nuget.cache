@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "hsQ6ntCh/W4=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\sam\\source\\repos\\bzbzMappingDemo\\bzbzMappingDemo.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\sam\\.nuget\\packages\\melanchall.drywetmidi\\8.0.1\\melanchall.drywetmidi.8.0.1.nupkg.sha512"
+  ],
+  "logs": []
+}
