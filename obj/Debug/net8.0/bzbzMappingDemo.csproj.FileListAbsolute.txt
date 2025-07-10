@@ -18,3 +18,4 @@ C:\Users\sam\source\repos\bzbzMappingDemo\obj\Debug\net8.0\refint\bzbzMappingDem
 C:\Users\sam\source\repos\bzbzMappingDemo\obj\Debug\net8.0\bzbzMappingDemo.pdb
 C:\Users\sam\source\repos\bzbzMappingDemo\obj\Debug\net8.0\bzbzMappingDemo.genruntimeconfig.cache
 C:\Users\sam\source\repos\bzbzMappingDemo\obj\Debug\net8.0\ref\bzbzMappingDemo.dll
+C:\Users\sam\source\repos\bzbzMappingDemo\obj\Debug\net8.0\bzbzMappingDemo.sourcelink.json

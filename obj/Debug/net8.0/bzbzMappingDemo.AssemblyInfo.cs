@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("bzbzMappingDemo")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9da8c3c2eac6222fa2adc80749577104ac0065c0")]
 [assembly: System.Reflection.AssemblyProductAttribute("bzbzMappingDemo")]
 [assembly: System.Reflection.AssemblyTitleAttribute("bzbzMappingDemo")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

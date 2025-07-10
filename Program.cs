@@ -4,6 +4,7 @@ using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using Melanchall.DryWetMidi.Core;
 using Melanchall.DryWetMidi.Interaction;
+using System.Xml;
 
 // I'm aware this code isn't well optimized, but it exists until I can make a proper level editor.
 // Thanks for considering making maps for this little experiment of mine! - SkyanSam
@@ -197,6 +198,41 @@ string[] GetBezierPoints(string pathString, int width, int height, bool isDebug=
     }
     return final.ToArray();
 }
+SVGScrape ScrapeSVG(string txt, bool isDebug = false)
+{
+    SVGScrape result = new SVGScrape();
+    XmlDocument xmlDoc = new XmlDocument();
+    xmlDoc.LoadXml(txt);
+    XmlNamespaceManager nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
+    nsmgr.AddNamespace("svg", "http://www.w3.org/2000/svg");
+
+    XmlNode? svgRoot = xmlDoc.DocumentElement;
+
+    if (svgRoot != null && svgRoot.Attributes != null)
+    {
+        result.width = int.Parse(Regex.Match(svgRoot.Attributes["width"]?.Value ?? "0", @"[0-9]+").Value);
+        result.height = int.Parse(Regex.Match(svgRoot.Attributes["height"]?.Value ?? "0", @"[0-9]+").Value);
+
+        XmlNode? pathNode = svgRoot.SelectSingleNode(".//svg:path", nsmgr);
+
+        if (pathNode != null)
+        {
+            string? dAttr = pathNode.Attributes?["d"]?.Value;
+            result.path = dAttr ?? "";
+        }
+        else
+        {
+            Console.WriteLine("ERROR : No <path> element found.");
+        }
+    }
+    else
+    {
+        Console.WriteLine("ERROR : No <svg> element or attribute found.");
+    }
+    
+    if (isDebug) Console.WriteLine($"ScrapeSvg Result {result.width}, {result.height}, {result.path}");
+    return result;
+}
 double Lerp(double a, double b, double t)
 {
     return ((b - a) * t) + a;
@@ -208,7 +244,11 @@ double DoubleParse(string s)
     return res;
 }
 
-GetBezierPoints("",100,100,isDebug: true);
+Dictionary<string, string[]> beziers = new Dictionary<string, string[]>();
+
+var scrape = ScrapeSVG(File.ReadAllText(@"C:\\Users\\sam\\source\\repos\\bzbzMappingDemo\\bezier.svg"));
+var bezierPts = GetBezierPoints(scrape.path, scrape.width, scrape.height, isDebug: true);
+//GetBezierPoints("",100,100,isDebug: true);
 MidiFile midiFile = MidiFile.Read(@"C:\\Users\\sam\\Documents\\Github\\bzbz\\Assets\\Audio\\bmsdemo.mid");
 var notes = GetNotes(midiFile);
 var str = JsonSerializer.Serialize(notes);
@@ -223,4 +263,13 @@ public class NoteDataRaw
     public string[] bezierPoints { get; set; } = [];
     public string[] bezierScratches { get; set; } = [];
 }
+public class SVGScrape
+{
+    public int width = 0;
+    public int height = 0;
+    public string path = "";
+}
+// TODO assign beziers to hold notes
+// assign scratches to hold notes
+// Bullets!!!
 
