@@ -1,0 +1,10 @@
+L 3.60 CubicLeftRight.svg
+R 6.32 CubicLeftRight.svg
+L 9.21 CubicRightLeft.svg
+R 11.35 CubicRightLeftRight.svg
+L 29.22 StraightLeft.svg
+R 29.22 StraightRight.svg
+L 30.83 StraightLeft.svg
+R 30.83 StraightRight.svg
+L 32 StraightRight.svg
+R 32 StraightLeft.svg

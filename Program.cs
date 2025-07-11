@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 using Melanchall.DryWetMidi.Core;
 using Melanchall.DryWetMidi.Interaction;
 using System.Xml;
+using System.Security.Cryptography;
+using Microsoft.VisualBasic;
 
 // I'm aware this code isn't well optimized, but it exists until I can make a proper level editor.
 // Thanks for considering making maps for this little experiment of mine! - SkyanSam
@@ -18,6 +20,7 @@ List<NoteDataRaw> GetNotes(MidiFile midiFile)
     int counter = 0;
     string uniqueID = "0";
     var newList = new List<NoteDataRaw>();
+    var scratches = new List<Scratch>();
     var notes = midiFile.GetNotes();
     var array = new Melanchall.DryWetMidi.Interaction.Note[notes.Count];
     notes.CopyTo(array, 0);
@@ -26,7 +29,25 @@ List<NoteDataRaw> GetNotes(MidiFile midiFile)
         Console.WriteLine($"{note.NoteName}{note.Octave} {note.Time} {note.EndTime}");
         double start = ConvertMidiTimeToSeconds(note.Time, midiFile);
         double end = ConvertMidiTimeToSeconds(note.EndTime, midiFile);
-        if (note.Octave == 4)
+        if (note.Octave == 5)
+        {
+            switch(note.NoteName)
+            {
+                case Melanchall.DryWetMidi.MusicTheory.NoteName.B:
+                    scratches.Add(new Scratch() { xValue = -3, timeStamp = start });
+                    break;
+                case Melanchall.DryWetMidi.MusicTheory.NoteName.A:
+                    scratches.Add(new Scratch() { xValue = -1, timeStamp = start });
+                    break;
+                case Melanchall.DryWetMidi.MusicTheory.NoteName.G:
+                    scratches.Add(new Scratch() { xValue = 1, timeStamp = start });
+                    break;
+                case Melanchall.DryWetMidi.MusicTheory.NoteName.F:
+                    scratches.Add(new Scratch() { xValue = 3, timeStamp = start });
+                    break;
+            }
+        }
+        else if (note.Octave == 4)
         {
             switch (note.NoteName)
             {
@@ -47,6 +68,9 @@ List<NoteDataRaw> GetNotes(MidiFile midiFile)
                     break;
                 case Melanchall.DryWetMidi.MusicTheory.NoteName.G:
                     newList.Add(new NoteDataRaw { id = uniqueID, type = "hold", startTime = start.ToString(), endTime = end.ToString(), xValue = "-2" });
+                    break;
+                case Melanchall.DryWetMidi.MusicTheory.NoteName.FSharp:
+                    newList.Add(new NoteDataRaw { id = uniqueID, type = "stomp", startTime = start.ToString(), endTime = end.ToString(), xValue = "-2" });
                     break;
                 case Melanchall.DryWetMidi.MusicTheory.NoteName.F:
                     newList.Add(new NoteDataRaw { id = uniqueID, type = "stompHold", startTime = start.ToString(), endTime = end.ToString(), xValue = "-2" });
@@ -75,13 +99,37 @@ List<NoteDataRaw> GetNotes(MidiFile midiFile)
                 case Melanchall.DryWetMidi.MusicTheory.NoteName.G:
                     newList.Add(new NoteDataRaw { id = uniqueID, type = "hold", startTime = start.ToString(), endTime = end.ToString(), xValue = "2" });
                     break;
+                case Melanchall.DryWetMidi.MusicTheory.NoteName.FSharp:
+                    newList.Add(new NoteDataRaw { id = uniqueID, type = "stomp", startTime = start.ToString(), endTime = end.ToString(), xValue = "2" });
+                    break;
                 case Melanchall.DryWetMidi.MusicTheory.NoteName.F:
                     newList.Add(new NoteDataRaw { id = uniqueID, type = "stompHold", startTime = start.ToString(), endTime = end.ToString(), xValue = "2" });
                     break;
             }
         }
+        else if (note.Octave == 2)
+        {
+            // TODO: Bullets.
+        }
         counter++;
         uniqueID = counter.ToString();
+    }
+    foreach (var s in scratches)
+    {
+        var index = newList.FindIndex((n) => ((float.Parse(n.xValue) > 0 && s.xValue > 0) || (float.Parse(n.xValue) < 0 && s.xValue < 0)) && double.Parse(n.startTime) <= s.timeStamp && s.timeStamp <= double.Parse(n.endTime));
+        if (index == -1)
+        {
+            Console.WriteLine($"ERROR : Couldn't find scratch for x : {s.xValue}, time : {s.timeStamp}");
+            continue;
+        }
+        // This nested loop is so bad, spare me please.
+        var bezierScratches = newList[index].bezierScratches.ToList();
+        Console.WriteLine("bezscratch0 : " + index + " : " + bezierScratches.Count);
+        bezierScratches.Add($"{s.xValue},{s.timeStamp}");
+        bezierScratches.Sort(new Comparison<string>((string s1, string s2) => s1.Split(',')[1].dp() > s2.Split(',')[1].dp() ? 1 : -1));
+        Console.WriteLine("bezscratch1 : " + index + " : " + bezierScratches.Count);
+        newList[index].bezierScratches = bezierScratches.ToArray();
+        Console.WriteLine("bezscratch2 : " + index + " : " + newList[index].bezierScratches.Length);
     }
     return newList;
 }
@@ -90,7 +138,6 @@ List<NoteDataRaw> GetNotes(MidiFile midiFile)
 string[] GetBezierPoints(string pathString, int width, int height, bool isDebug=false)
 {
     string pattern = @"(-?\d+(\.\d+)?)|C|L|M|c|l|m";
-    pathString = " M 0 100 C 0.394 30.608 17.297 -2.716 50.68 0 C 83.275 -1.851 99.725 31.492 100 100";
     List<List<string>> points = [[]];
     int index = 0;
     bool x = true;
@@ -230,29 +277,91 @@ SVGScrape ScrapeSVG(string txt, bool isDebug = false)
         Console.WriteLine("ERROR : No <svg> element or attribute found.");
     }
     
-    if (isDebug) Console.WriteLine($"ScrapeSvg Result {result.width}, {result.height}, {result.path}");
+    if (isDebug) Console.WriteLine($"Scrape Svg Result {result.width}, {result.height}, {result.path}");
     return result;
 }
 double Lerp(double a, double b, double t)
 {
     return ((b - a) * t) + a;
 }
-double DoubleParse(string s)
+static double DoubleParse(string s)
 {
     double res;
     if (!double.TryParse(s, out res)) Console.WriteLine("ERROR: DOUBLE FAILED PARSE " + s);
     return res;
 }
 
+
+Console.Write("Midi Path (.mid) (enter blank for default path) :");
+var midiPathRes = Console.ReadLine();
+var midiPath = midiPathRes == null || midiPathRes == "" ? @"C:\Users\sam\source\repos\bzbzMappingDemo\map.mid" : midiPathRes;
+Console.Write("SVG Path (folder) (enter blank for default path) :");
+var svgPathRes = Console.ReadLine();
+var svgPath = svgPathRes == null || svgPathRes == "" ? @"C:\Users\sam\source\repos\bzbzMappingDemo\svg\" : svgPathRes;
+Console.Write("Hold Mapping Path (.txt) (enter blank for default path) :");
+var holdPathRes = Console.ReadLine();
+var holdPath = holdPathRes == null || holdPathRes == "" ? @"C:\Users\sam\source\repos\bzbzMappingDemo\holdmap.txt" : holdPathRes;
+Console.Write("Export Path (.json) (enter blank for default path) :");
+var exportPathRes = Console.ReadLine();
+var exportPath = exportPathRes == null || exportPathRes == "" ? @"C:\Users\sam\source\repos\bzbzMappingDemo\map.json" : exportPathRes;
+
+
+Console.WriteLine("Final Midi Path : " + midiPath);
+Console.WriteLine("Final SVG Path : " + svgPath);
+Console.WriteLine("Final Hold Path : " + holdPath);
+Console.WriteLine("Exporting to " + exportPath);
+
+
+
+MidiFile midiFile = MidiFile.Read(midiPath);
+var notes = GetNotes(midiFile);
+
 Dictionary<string, string[]> beziers = new Dictionary<string, string[]>();
 
-var scrape = ScrapeSVG(File.ReadAllText(@"C:\\Users\\sam\\source\\repos\\bzbzMappingDemo\\bezier.svg"));
-var bezierPts = GetBezierPoints(scrape.path, scrape.width, scrape.height, isDebug: true);
-//GetBezierPoints("",100,100,isDebug: true);
-MidiFile midiFile = MidiFile.Read(@"C:\\Users\\sam\\Documents\\Github\\bzbz\\Assets\\Audio\\bmsdemo.mid");
-var notes = GetNotes(midiFile);
+var holdLines = File.ReadAllLines(holdPath);
+Console.WriteLine("Hold Lines Count : " + holdLines.Length.ToString());
+foreach (var line in holdLines)
+{
+    var split = line.Split(' ');
+    string[] pts;
+    if (!beziers.ContainsKey(split[2]))
+    {
+        var scrape = ScrapeSVG(File.ReadAllText(svgPath + split[2]));
+        pts = GetBezierPoints(scrape.path, scrape.width, scrape.height);
+        beziers[split[2]] = pts;
+    }
+    else
+    {
+        pts = beziers[split[2]];
+    }
+    for (int i = 0; i < notes.Count; i++)
+    {
+        if (notes[i].type != "hold") continue;
+        bool leftCondition = split[0] == "L" && float.Parse(notes[i].xValue) <= 0;
+        bool rightCondition = split[0] == "R" && float.Parse(notes[i].xValue) >= 0;
+        if (!leftCondition && !rightCondition) continue;
+        bool timeCondition = double.Parse(notes[i].startTime) <= double.Parse(split[1]) && double.Parse(split[1]) <= double.Parse(notes[i].endTime);
+        if (!timeCondition) continue;
+
+        var startTime = double.Parse(notes[i].startTime);
+        var endTime = double.Parse(notes[i].endTime);
+        notes[i].bezierPoints = new string[pts.Length];
+        for (int j = 0; j < pts.Length; j++)
+        {
+            var ptsSplit = pts[j].Split(',');
+            var xt = double.Parse(ptsSplit[0]);
+            var yt = double.Parse(ptsSplit[1]);
+            var x = Lerp(startTime, endTime, xt);
+            var y = split[0] == "R" ? Lerp(1.0, 3.0, yt) : Lerp(-3.0, -1.0, yt);
+            notes[i].bezierPoints[j] = $"{y},{x}";
+            Console.WriteLine($"{notes[i].id} , st {startTime} , en {endTime} , xt {xt}, yt {yt}, x {x}, y {y} -> {notes[i].bezierPoints[j]}");
+        }
+    }
+}
+
 var str = JsonSerializer.Serialize(notes);
-System.IO.File.WriteAllText(@"C:\Users\sam\source\repos\bzbzMappingDemo\mymap.json", str);
+File.WriteAllText(exportPath, str);
+Console.WriteLine("Exported Successfully.");
 public class NoteDataRaw
 {
     public string id { get; set; } = "";
@@ -268,6 +377,30 @@ public class SVGScrape
     public int width = 0;
     public int height = 0;
     public string path = "";
+}
+public class Scratch
+{
+    public float xValue = 0;
+    public double timeStamp = 0;
+}
+public class BulletRawData
+{
+    public string type = "";
+    public string posX = "";
+    public string posZ = "";
+    public string velX = "";
+    public string velZ = "";
+    public string minDeg = "";
+    public string maxDeg = "";
+}
+public static class MyExtension
+{
+    public static double dp(this string s)
+    {
+        double res;
+        if (!double.TryParse(s, out res)) Console.WriteLine("ERROR: DOUBLE FAILED PARSE " + s);
+        return res;
+    }
 }
 // TODO assign beziers to hold notes
 // assign scratches to hold notes
